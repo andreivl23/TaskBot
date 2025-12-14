@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+    <title>AI tasks</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+</head>
+<body style="background-color:black;color:white">
+<div class="main-container">
+ <h1> AI tasks bot testing </h1>
+  <h3>Prompt here..</h3>
+
+    <input id='prompt' placeholder="Your prompt" style="width: 50vw">
+    <button id="ask">Ask</button>
+    <div id="response"></div>
+
+<script>
+    const endpoint = '';
+    document.getElementById("ask").addEventListener("click", async () => {
+    const text = document.getElementById("prompt").value;
+    const result = document.getElementById("response");
+    result.innerText = 'Loading..'
+    const res = await fetch(endpoint + `/prompt?text=${encodeURIComponent(text)}`);
+    const markdown = await res.text();  // or res.json()
+
+    result.innerHTML = marked.parse(markdown);
+})
+    document.getElementById("prompt").addEventListener("keydown", function (e) {
+        if (e.key === "Enter") {
+            e.preventDefault();
+            document.getElementById("ask").click();
+        }
+})
+</script>
+
+</div>
+</body>
+</html>
