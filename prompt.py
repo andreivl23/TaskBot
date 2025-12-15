@@ -128,7 +128,8 @@ def prompt_ai(text,user_id):
             },
             {"role": "user", "content": text}
         ],
-        "stream": False
+        "stream": False,
+        "think": False
     }
     print(system_message)
     res = requests.post(
