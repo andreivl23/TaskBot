@@ -44,7 +44,7 @@ Rules by type:
 - Do NOT invent categories
 
 2) mark_as_done
-- Required: id (task ID from context)
+- Required: task_id (task ID from context)
 
 3) create_category
 - Required: title
