@@ -4,72 +4,15 @@ import datetime
 from database import get_pending_tasks, get_categories
 from preprocessing import fix_json
 import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 endpoint = os.getenv("TASKBOT_PROMPT_ENDPOINT")
-model = "gemma3:latest"
+model = "qwen3:latest"
 
-system_prompt = """You are a task assistant. You help the user to track and save their tasks.
 
-You must ALWAYS respond in valid JSON.
-You have only four response types:
-
-1. create_task
-2. mark_as_done
-3. create_category
-4. chat
-
-If the user wants to add, remember, save, or schedule a task,
-use type = "create_task".
-
-If user asks to mark task as done, use type = "mark_as_done"
-
-If user wants to create a category, use type = "create_category"
-The categories listed in context are already saved.
-Do NOT recreate or duplicate them.
-
-Otherwise, use type = "chat".
-
-For create_task, extract:
-- title (required, short) 
-- category
-- due_at (dd-mm-yyyy)
-
-When extracting due_at:
-- Assume the user intends a future date unless explicitly stated otherwise
-- If a date would fall in the past, choose the nearest future occurrence
-
-You may assign a category to a task.
-You must ONLY use one of the existing categories provided.
-If none are close by meaning, set category = null.
-Do NOT invent new categories.
-
-Never include explanations outside JSON.
-
-You are a JSON generator. Output ONLY valid JSON with this structure:
-
-{
-  "type": "create_task"  | "mark_as_done" | "create_category" | "chat",
-  "id": int,
-  "title": string,
-  "category": string | null,
-  "category_id": int | null,
-  "due_at": string | null,
-  "message": string (Markdown)
-}
-
-Do NOT include ```json or any other code formatting.
-
-For type "chat", only "message" is required. Always include IDs of the tasks.
-
-Today's date is provided in the context.
-If the user uses relative dates (e.g. "tomorrow", "next week"),
-convert them to an absolute date using today's date.
-
-The tasks listed in context are already saved.
-Do NOT recreate or duplicate them.
-Only create a task if the user clearly requests a new one.
-"""
-system_prompt2 = """You are a task assistant.
+system_prompt = """You are a task assistant.
 
 You MUST respond with a single valid JSON object.
 Do NOT use Markdown, code blocks, or explanations.
@@ -109,6 +52,7 @@ Rules by type:
 
 4) chat
 - Required: message
+- ALWAYS include message part in JSON when type is chat
 - When listing tasks, ALWAYS include their IDs and titles
 - Use Markdown only when type is "chat"
 - If has_categories is false, and the user asks about categories,
@@ -170,7 +114,7 @@ def prompt_ai(text,user_id):
     }
 
     system_message = (
-            system_prompt2
+            system_prompt
             + "\n\nContext (JSON):\n"
             + json.dumps(context, indent=2)
     )
@@ -199,7 +143,4 @@ def prompt_ai(text,user_id):
     data = fix_json(raw)
     print("Cleaned: ", data)
     return data
-
-
-
 
