@@ -41,7 +41,7 @@ def prompt():
 
     if data["type"] == "create_task":
         save_task_to_db(user_id, data)
-        return f"Task '{data['title']}' saved."
+        return f"Task: '{data['title']}, Category: {data['category_id']}' saved."
 
     elif data["type"] == "mark_as_done":
         mark_task_done(user_id, data['task_id'])
