@@ -59,3 +59,24 @@ def fix_json(raw):
     cleaned = re.sub(r"```(?:json)?\n(.*?)```", r"\1", raw, flags=re.DOTALL)
     data = json.loads(cleaned)
     return data
+
+# Saving on tokens for unused/less useful data
+def format_tasks(tasks):
+    return [
+        {
+            "task_id": t["id"],
+            "task_title": t["title"],
+            "category_id": t["category_id"],
+            "due_at": t["due_at"]
+        }
+        for t in tasks
+    ]
+
+def format_categories(categories):
+    return [
+        {
+            "category_id": c["id"],
+            "category_name": c["name"]
+        }
+        for c in categories
+    ]

@@ -2,7 +2,7 @@ import requests
 import json
 import datetime
 from database import get_pending_tasks, get_categories
-from preprocessing import fix_json
+from preprocessing import fix_json, format_categories, format_tasks
 import os
 from dotenv import load_dotenv
 
@@ -80,27 +80,6 @@ Output ONLY the JSON object.
 
 current_date = datetime.date.today().strftime("%A %d-%m-%Y")
 
-# Saving on tokens for unused/less useful data
-def format_tasks(tasks):
-    return [
-        {
-            "task_id": t["id"],
-            "task_title": t["title"],
-            "category_id": t["category_id"],
-            "due_at": t["due_at"]
-        }
-        for t in tasks
-    ]
-
-def format_categories(categories):
-    return [
-        {
-            "category_id": c["id"],
-            "category_name": c["name"]
-        }
-        for c in categories
-    ]
-
 
 def prompt_ai(text,user_id):
     tasks = format_tasks(get_pending_tasks(user_id))
@@ -118,6 +97,7 @@ def prompt_ai(text,user_id):
             + "\n\nContext (JSON):\n"
             + json.dumps(context, indent=2)
     )
+    print(system_message)  # final system message
 
     payload = {
         "model": model,
@@ -131,7 +111,7 @@ def prompt_ai(text,user_id):
         "stream": False,
         "think": False
     }
-    print(system_message)
+
     res = requests.post(
         endpoint,
         json=payload,
@@ -140,8 +120,7 @@ def prompt_ai(text,user_id):
 
     res.raise_for_status()
     raw = res.json()["message"]["content"]
-    print("RAW: ", raw)
-    data = fix_json(raw)
-    print("Cleaned: ", data)
+    print(raw) # for debugging
+    data = fix_json(raw) # Fixing json in a Markdown code block quotes
     return data
 
