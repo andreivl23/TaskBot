@@ -72,6 +72,20 @@ def get_or_create_user(telegram_user_id, username=None, first_name=None):
         ).fetchone()["id"]
 
 
+def task_exists(user_id, title, due_at=None):
+    with get_connection() as conn:
+        row = conn.execute(
+            """
+            SELECT 1 FROM tasks
+            WHERE user_id = ?
+              AND lower(title) = lower(?)
+              AND status = 'pending'
+            """,
+            (user_id, title.strip())
+        ).fetchone()
+        return row is not None
+
+
 def add_task(user_id, title, description=None, due_at=None, category_id=None):
     with get_connection() as conn:
         conn.execute(

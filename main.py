@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 import os
 import json
 # APP functions
-from database import init_db, get_or_create_user, add_task, mark_task_done, create_category, get_pending_tasks
+from database import *
 from preprocessing import normalize_due_date, enforce_future_date, clean_chat_message
 # Prompts
 from prompt import decision_prompt, create_task_prompt, create_category_prompt, mark_as_done_prompt, chat_prompt
@@ -41,7 +41,9 @@ def prompt():
     match decision["type"]:
         case "create_task":
             data = create_task_prompt(user_prompt, user_id)
-            save_task_to_db(user_id, data)
+            error = save_task_to_db(user_id, data)
+            if error:
+                return f"Task'{data['title']}' was not saved. {error}"
             return f"Task '{data['title']}' saved."
 
         case "mark_as_done":
@@ -66,6 +68,9 @@ def save_task_to_db(user_id, data):
     if not data.get("title"):
         raise ValueError("Task title is required")
 
+    if task_exists(user_id, data["title"]):
+        return "Already exists!"
+
     due_at = normalize_due_date(data.get("due_at"))
     due_at = enforce_future_date(due_at)
 
@@ -75,8 +80,6 @@ def save_task_to_db(user_id, data):
         due_at=due_at,
         category_id=data.get("category_id"),
     )
-
-    return
 
 
 if __name__ == '__main__':
