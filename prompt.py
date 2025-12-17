@@ -9,94 +9,22 @@ from dotenv import load_dotenv
 load_dotenv()
 
 endpoint = os.getenv("TASKBOT_PROMPT_ENDPOINT")
-model = "qwen3:latest"
-
-
-system_prompt = """You are a task assistant.
-
-You MUST respond with a single valid JSON object.
-Do NOT use Markdown, code blocks, or explanations.
-
-You have exactly four response types:
-- create_task
-- mark_as_done
-- create_category
-- chat
-
-The response schema is:
-
-{
-  "type": "create_task" | "mark_as_done" | "create_category" | "chat",
-  "task_id": int | null,
-  "title": string | null,
-  "category_id": int | null,
-  "due_at": string | null,
-  "message": string | null
-}
-
-Rules by type:
-
-1) create_task
-- Required: title
-- Optional: category_id, due_at
-- category_id MUST be one of the existing category IDs from context
-- If no category matches by meaning, use null
-- Do NOT invent categories
-
-2) mark_as_done
-- Required: task_id (task ID from context)
-
-3) create_category
-- Required: title
-- Do NOT recreate existing categories
-
-4) chat
-- Required: message
-- ALWAYS include message part in JSON when type is chat
-- When listing tasks, ALWAYS include their IDs and titles
-- Use Markdown only when type is "chat"
-- If has_categories is false, and the user asks about categories,
- you MUST respond that no categories exist.
- Do NOT mention or suggest example categories.
-
-
-Date rules:
-- Format: dd-mm-yyyy
-- Assume future dates
-- If a date would be in the past, move it to the nearest future occurrence
-- Convert relative dates using today's date from context
-
-General rules:
-- Tasks and categories in context already exist
-- Do NOT recreate existing tasks
-- Only create a task if the user clearly requests it
-- category_id is authoritative; never guess IDs
-- In chat responses, NEVER invent or suggest tasks or categories
-that are not present in context.
-
-
-Output ONLY the JSON object.
-"""
 
 current_date = datetime.date.today().strftime("%A %d-%m-%Y")
 
+def prompt_ai(user_prompt, system_prompt, context = None, model="qwen3:latest"):
 
-def prompt_ai(text,user_id):
-    tasks = format_tasks(get_pending_tasks(user_id))
-    categories = format_categories(get_categories(user_id))
-    context = {
-        "date": current_date,
-        "current_tasks": tasks,
-        "has_tasks": len(tasks) > 0,
-        "categories": categories,
-        "has_categories": len(categories) > 0
-    }
+    system_message = system_prompt
 
-    system_message = (
-            system_prompt
-            + "\n\nContext (JSON):\n"
-            + json.dumps(context, indent=2)
-    )
+    if context is not None:
+        system_message += (
+            "\n\nContext (JSON):\n"
+            + json.dumps(
+                context if context else {"note": "No additional context provided"},
+                indent=2
+            )
+        )
+
     print(system_message)  # final system message
 
     payload = {
@@ -106,7 +34,7 @@ def prompt_ai(text,user_id):
                 "role": "system",
                 "content": system_message
             },
-            {"role": "user", "content": text}
+            {"role": "user", "content": user_prompt}
         ],
         "stream": False,
         "think": False
@@ -121,6 +49,132 @@ def prompt_ai(text,user_id):
     res.raise_for_status()
     raw = res.json()["message"]["content"]
     print(raw) # for debugging
-    data = fix_json(raw) # Fixing json in a Markdown code block quotes
-    return data
+    llm_json = fix_json(raw) # Fixing json in a Markdown code block quotes
+    return llm_json
+
+
+def decision_prompt(user_prompt):
+    system_prompt = """
+    You are an intent classifier.
+
+    Return a single JSON object with this schema:
+
+    {
+      "type": "create_task" | "mark_as_done" | "create_category" | "chat",
+      "message": "string"
+    }
+
+    Rules:
+    - Classify the user's intent only
+    - In the message field include type and confidence
+    - Do NOT extract task data
+    - Do NOT explain
+    - Output JSON only
+    """
+
+    return prompt_ai(
+        user_prompt=user_prompt,
+        system_prompt=system_prompt,
+        context={}
+    )
+
+
+def create_task_prompt(user_prompt,user_id):
+    system_prompt = """Your job is to prepare a JSON for creating a task.
+
+    You MUST respond with a single valid JSON object.
+    Do NOT use Markdown, code blocks, or explanations.
+
+    The response schema is:
+
+    {
+      "title": string,
+      "category_id": int | null,
+      "due_at": string | null,
+    }
+
+    Rules:
+
+    - Required: title
+    - Optional: category_id, due_at
+    - category_id MUST be one of the existing category IDs from context
+    - If no existing category matches, use null
+    - Do NOT invent categories
+
+    Date rules:
+    - Format: dd-mm-yyyy
+    - Assume future dates
+    - If a date would be in the past, move it to the nearest future occurrence
+    - Convert relative dates using today's date from context
+
+    General rules:
+    - Do NOT recreate existing tasks
+
+    Output ONLY the JSON object.
+    """
+
+    tasks = format_tasks(get_pending_tasks(user_id))
+    categories = format_categories(get_categories(user_id))
+    context = {
+        "date": current_date,
+        "current_tasks": tasks,
+        "categories": categories,
+    }
+
+    llm_json = prompt_ai(user_prompt,system_prompt,context)
+
+    return llm_json
+
+def mark_as_done_prompt(user_prompt,user_id):
+    return "mark as done: " + user_prompt
+
+def create_category_prompt(user_prompt,user_id):
+    return "create category: " + user_prompt
+
+def chat_prompt(user_prompt, user_id):
+    system_prompt = """
+You are a task advisor.
+
+You MUST respond with a single valid JSON object.
+Do NOT include explanations outside JSON.
+
+Schema:
+{
+  "message": string
+}
+
+Rules:
+- "message" MUST contain Markdown-formatted text
+- Use the context to guide the user
+- If there are no tasks and no categories, reply exactly:
+  "There are no tasks or categories created yet."
+- By default, include ONLY 3 tasks that have a deadline soon. 
+- If user wants to see many tasks, use table format
+"""
+
+    tasks = format_tasks(get_pending_tasks(user_id))
+    categories = format_categories(get_categories(user_id))
+
+    context = {
+        "date": current_date,
+        "current_tasks": tasks,
+        "has_tasks": len(tasks) > 0,
+        "categories": categories,
+        "has_categories": len(categories) > 0,
+    }
+
+    data = prompt_ai(
+        user_prompt=user_prompt,
+        system_prompt=system_prompt,
+        context=context
+    )
+
+    return data["message"]
+
+
+
+
+
+
+
 
