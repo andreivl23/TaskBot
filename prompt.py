@@ -189,6 +189,8 @@ Rules:
   - Use the existing category name
 - Do NOT invent categories
 - Do NOT modify existing categories
+- Examples:
+    - "Add category Project" -> "category_name": "Project"
     """
 
     categories = format_categories(get_categories(user_id))
