@@ -2,7 +2,7 @@ import requests
 import json
 import datetime
 from database import get_pending_tasks, get_categories
-from preprocessing import fix_json, format_categories, format_tasks
+from preprocessing import *
 import os
 from dotenv import load_dotenv
 
@@ -10,7 +10,7 @@ load_dotenv()
 
 endpoint = os.getenv("TASKBOT_PROMPT_ENDPOINT")
 
-current_date = datetime.date.today().strftime("%A %d-%m-%Y")
+current_date = date.today().strftime("%A %d-%m-%Y")
 
 def prompt_ai(user_prompt, system_prompt, context = None, model="qwen3:latest"):
 
@@ -122,8 +122,10 @@ Date rules:
 Output ONLY the JSON object.
     """
 
-    tasks = format_tasks(get_pending_tasks(user_id))
-    categories = format_categories(get_categories(user_id))
+    categories = get_categories(user_id)
+    categories_by_id = {c["id"]: c["name"] for c in categories}
+    tasks = format_tasks_text(get_pending_tasks(user_id),categories_by_id)
+
     context = {
         "current_date": current_date,
         "current_tasks": tasks,
@@ -158,7 +160,7 @@ Rules:
 
         """
 
-    tasks = format_tasks(get_pending_tasks(user_id))
+    tasks = format_tasks_text(get_pending_tasks(user_id))
 
     context = {
         "current_date": current_date,
@@ -199,7 +201,7 @@ Rules:
     - "Add category Project" -> "category_name": "Project"
     """
 
-    categories = format_categories(get_categories(user_id))
+    categories = format_categories_text(get_categories(user_id))
 
     context = {
         "categories": categories,
@@ -244,18 +246,19 @@ If there are no tasks, reply exactly:
 "There are no tasks created yet."
 
 Task listing rules:
-- By default, include ONLY 3 tasks with the nearest deadlines
-- If the user asks for 5 or more tasks, use a table format without column names
+- By default, include tasks with the nearest deadlines
 """
 
-    tasks = format_tasks(get_pending_tasks(user_id))
-    categories = format_categories(get_categories(user_id))
+    categories = get_categories(user_id)
+    categories_by_id = {c["id"]: c["name"] for c in categories}
+
+    tasks = format_tasks_text(get_pending_tasks(user_id), categories_by_id)
 
     context = {
         "current_date": current_date,
         "current_tasks": tasks,
         "has_tasks": len(tasks) > 0,
-        "categories": categories,
+        "categories": format_categories_text(categories),
         "has_categories": len(categories) > 0,
     }
 

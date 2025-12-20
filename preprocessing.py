@@ -61,16 +61,33 @@ def fix_json(raw):
     return data
 
 # Saving on tokens for unused/less useful data
-def format_tasks(tasks):
-    return [
-        {
-            "task_id": t["id"],
-            "task_title": t["title"],
-            "category_id": t["category_id"],
-            "due_at": t["due_at"]
-        }
-        for t in tasks
-    ]
+def format_tasks(tasks, categories_by_id=None):
+    if categories_by_id:
+        return [
+            {
+                "task_id": t["id"],
+                "title": t["title"],
+                "category": (
+                    {
+                        "cat_id": t["category_id"],
+                        "name": categories_by_id.get(t["category_id"])
+                    }
+                    if t["category_id"] is not None
+                    else None
+                ),
+                "due_at": t["due_at"]
+            }
+            for t in tasks
+        ]
+    else:
+        return [
+            {
+                "task_id": t["id"],
+                "title": t["title"],
+                "due_at": t["due_at"]
+            }
+            for t in tasks
+        ]
 
 def format_categories(categories):
     return [
@@ -80,3 +97,31 @@ def format_categories(categories):
         }
         for c in categories
     ]
+
+
+def format_tasks_text(tasks, categories_by_id=None):
+    if not tasks:
+        return "No tasks."
+
+    lines = []
+    for t in tasks:
+        parts = [f"Task {t['id']}: {t['title']}"]
+
+        if categories_by_id and t['category_id']:
+            cat_name = categories_by_id.get(t['category_id'])
+            parts.append(f"category: {cat_name}")
+
+        if t['due_at']:
+            parts.append(f"due: {t['due_at']}")
+        else: parts.append(f"This is a note.")
+
+        lines.append(", ".join(parts))
+
+    return " \n ".join(lines)
+
+
+def format_categories_text(categories):
+    if not categories:
+        return "No categories."
+
+    return " \n ".join([f"Category {c['id']}: {c['name']}" for c in categories])

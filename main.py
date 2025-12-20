@@ -2,7 +2,6 @@ from flask import Flask, request, render_template
 from flask_cors import CORS
 from dotenv import load_dotenv
 import os
-import json
 # APP functions
 from database import *
 from preprocessing import normalize_due_date, enforce_future_date, clean_chat_message
