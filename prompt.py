@@ -85,64 +85,48 @@ Rules:
     )
 
 
-def create_task_prompt(user_prompt,user_id):
-    system_prompt = """Your job is to prepare a JSON for creating a task.
+def create_task_prompt(user_prompt):
+    system_prompt = """You extract task information.
 
 You MUST respond with a single valid JSON object.
 Do NOT use Markdown, code blocks, or explanations.
 
-The response schema is:
-
+Schema:
 {
   "title": string,
-  "category_id": int | null,
-  "due": {
-      "type": "absolute" | "relative" | null,
-      "value": string | null
+  "due": null | {
+    "type": "absolute" | "relative",
+    "value": string
+  }
 }
 
 Rules:
-
-- Required: title
-- Optional: category_id, due
-- category_id MUST be one of the existing category IDs from context
-- If none of existing category matches, use null
-- Do NOT include category name or date in the title of a task
-- Do NOT invent categories
-- Examples:
-    - "Include category name next to a task, taskbot"
-    -> "title": "Include category name next to a task"
-    - "Add task: Improve prompts, taskbot, until next Sunday"
-    -> "title": "Improve prompts"
+- title is REQUIRED
+- Do NOT include category names in the title
+- Do NOT include dates in the title
+- Do NOT infer or invent information
 
 Date rules:
 - DO NOT calculate dates
-- If the user gives a relative date (e.g. tomorrow, next week), return it as-is
-- If the user gives an absolute date, extract it exactly
-- If no date is mentioned, use null
+- Relative dates: return exactly as mentioned
+- Absolute dates: extract exactly
+- If no date is mentioned, due must be null
 
 Examples:
-    { "type": "relative", "value": "tomorrow" }
-    { "type": "relative", "value": "next sunday" }
-    { "type": "absolute", "value": "25-12-2025" }
+- "Buy milk"
+  -> { "title": "Buy milk", "due": null }
 
+- "Finish report next week"
+  -> { "title": "Finish report", "due": { "type": "relative", "value": "next week" } }
 
 Output ONLY the JSON object.
-    """
-
-    categories = get_categories(user_id)
-    categories_by_id = {c["id"]: c["name"] for c in categories}
-    tasks = format_tasks_text(get_pending_tasks(user_id),categories_by_id)
+"""
 
     context = {
-        "current_date": current_date,
-        "current_tasks": tasks,
-        "categories": categories,
+        "current_date": current_date
     }
 
-    llm_json = prompt_ai(user_prompt,system_prompt,context)
-
-    return llm_json
+    return prompt_ai(user_prompt, system_prompt, context)
 
 def mark_as_done_prompt(user_prompt,user_id):
     system_prompt = """

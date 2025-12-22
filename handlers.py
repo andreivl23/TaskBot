@@ -15,7 +15,7 @@ def handle_user_input(text: str, user_id: int) -> str:
 
     match decision["type"]:
         case "create_task":
-            data = create_task_prompt(text, user_id)
+            data = create_task_prompt(text)
 
             if not data.get("title"):
                 return "I couldn't determine the task title."
