@@ -30,8 +30,9 @@ def index():
 
 @app.route("/telegram/webhook", methods=["POST"])
 def telegram_webhook():
+    print(">>> TELEGRAM WEBHOOK HIT <<<", flush=True)
     data = request.json
-
+    print("RAW DATA:", data, flush=True)
     if not data or "message" not in data:
         return "ok", 200
 
