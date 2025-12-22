@@ -52,7 +52,7 @@ def telegram_webhook():
 
     requests.post(
         TELEGRAM_API,
-        json={"chat_id": chat_id, "text": reply},
+        json={"chat_id": chat_id, "text": reply, "parse_mode": "HTML"},
         timeout=10
     )
 
