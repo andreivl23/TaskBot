@@ -28,9 +28,9 @@
     const result = document.getElementById("response");
     result.innerText = 'Loading..'
     const res = await fetch(endpoint + `/prompt?text=${encodeURIComponent(text)}`);
-    const markdown = await res.text();  // or res.json()
+    //const markdown = await res.text();  // or res.json()
 
-    result.innerHTML = marked.parse(markdown);
+    result.innerHTML = await res.text();
 })
     document.getElementById("prompt").addEventListener("keydown", function (e) {
         if (e.key === "Enter") {
