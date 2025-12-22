@@ -237,7 +237,8 @@ Schema:
 }
 
 Rules:
-- "message" MUST contain Markdown-formatted text
+- "message" MUST contain HTML-styled text.
+- Only use these HTML tags: <b>, <i>. Use "\\n" as break line
 - You are NOT allowed to create, remove, modify, or complete tasks or categories
 - NEVER say or imply that a task was created, removed, deleted, updated, or marked as done
 - If the user requests an action (e.g. remove, delete, mark, complete):
