@@ -142,7 +142,7 @@ def format_tasks_text(tasks, categories_by_id=None):
 
         if t['due_at']:
             parts.append(f"due: {t['due_at']}")
-        else: parts.append(f"This is a note.")
+        else: parts.append(f"No due date.")
 
         lines.append(", ".join(parts))
 
