@@ -1,6 +1,7 @@
 from flask import Flask, request, render_template
 from flask_cors import CORS
 from dotenv import load_dotenv
+import requests
 import os
 # APP functions
 from database import *
@@ -8,13 +9,15 @@ from preprocessing import normalize_due_date, enforce_future_date, clean_chat_me
 # Prompts
 from prompt import decision_prompt, create_task_prompt, create_category_prompt, mark_as_done_prompt, chat_prompt
 
+# ENV VARIABLES
 load_dotenv()
-
-flask_key = os.getenv("TASKBOT_FLASK_SECRET_KEY")
+TELEGRAM_TOKEN = os.getenv("TASKBOT_TELEGRAM_TOKEN")
+TELEGRAM_API = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
+FLASK_KEY = os.getenv("TASKBOT_FLASK_SECRET_KEY")
 
 # FLASK
 app = Flask(__name__)
-app.config['SECRET_KEY'] = flask_key
+app.config['SECRET_KEY'] = FLASK_KEY
 CORS(app)
 
 # CREATE DATABASE ON FIRST RUN
@@ -24,6 +27,51 @@ init_db()
 @app.route('/')
 def index():
     return render_template("index.html")  # Load the dashboard page
+
+
+@app.route("/telegram/webhook", methods=["POST"])
+def telegram_webhook():
+    data = request.json
+
+    if not data or "message" not in data:
+        return "ok", 200
+
+    message = data["message"]
+    chat_id = message["chat"]["id"]
+    text = message.get("text", "")
+
+    tg_user = message["from"]
+
+    user_id = get_or_create_user(
+        telegram_user_id=tg_user["id"],
+        username=tg_user.get("username"),
+        first_name=tg_user.get("first_name"),
+    )
+
+    result = decision_prompt(text)
+
+    if result["type"] == "create_task":
+        reply = f"Task created: {result['title']}"
+
+    elif result["type"] == "mark_as_done":
+        reply = f"Task {result['task_id']} marked as done."
+
+    elif result["type"] == "create_category":
+        reply = f"Category created: {result['title']}"
+
+    else:
+        reply = result["message"]
+
+    requests.post(
+        TELEGRAM_API,
+        json={
+            "chat_id": chat_id,
+            "text": reply
+        },
+        timeout=10
+    )
+
+    return "ok", 200
 
 
 @app.route('/prompt', methods=['GET'])
