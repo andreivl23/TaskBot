@@ -1,11 +1,13 @@
 from database import *
-from preprocessing import normalize_due_date, enforce_future_date
+from datetime import date
+from preprocessing import resolve_time_expression, normalize_due_date
 from prompt import (
     decision_prompt,
     create_task_prompt,
     create_category_prompt,
     mark_as_done_prompt,
-    chat_prompt
+    chat_prompt,
+    date_prompt
 )
 
 def handle_user_input(text: str, user_id: int) -> str:
@@ -14,15 +16,21 @@ def handle_user_input(text: str, user_id: int) -> str:
     match decision["type"]:
         case "create_task":
             data = create_task_prompt(text, user_id)
-
+            due = data.get("due")
             if not data.get("title"):
                 return "I couldn't determine the task title."
 
             if task_exists(user_id, title=data["title"]):
                 return "That task already exists."
 
-            due_at = normalize_due_date(data.get("due_at"))
-            due_at = enforce_future_date(due_at)
+            if due["type"] == "relative":
+                time_expr = date_prompt(due["value"])["time_expression"]
+                due_date = resolve_time_expression(time_expr, date.today())
+                due_at = due_date.isoformat() if due_date else None
+            elif due["type"] == "absolute":
+                due_at = normalize_due_date(due["value"])
+            else:
+                due_at = None
 
             add_task(
                 user_id=user_id,

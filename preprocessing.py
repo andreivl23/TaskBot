@@ -1,6 +1,61 @@
-from datetime import date, datetime
+from datetime import datetime
+
 import re
 import json
+
+from datetime import date, timedelta
+from dateutil.relativedelta import relativedelta
+
+def resolve_time_expression(expr: str | None, today: date) -> date | None:
+    if not expr:
+        return None
+
+    if expr == "today":
+        return today
+
+    if expr == "tomorrow":
+        return today + timedelta(days=1)
+
+    if expr == "next_week":
+        return today + timedelta(weeks=1)
+
+    if expr == "next_month":
+        return today + relativedelta(months=1)
+
+    if expr == "next_year":
+        return today + relativedelta(years=1)
+
+    if expr.startswith("in_"):
+        parts = expr.split("_")
+        if len(parts) != 3:
+            return None
+
+        n = int(parts[1])
+        unit = parts[2]
+
+        if unit == "days":
+            return today + timedelta(days=n)
+        if unit == "weeks":
+            return today + timedelta(weeks=n)
+        if unit == "months":
+            return today + relativedelta(months=n)
+
+    if expr == "start_of_next_week":
+        return today + relativedelta(weeks=1, weekday=0)
+
+    if expr == "end_of_next_week":
+        start = today + relativedelta(weeks=1, weekday=0)
+        return start + timedelta(days=6)
+
+    if expr == "start_of_month":
+        return today.replace(day=1)
+
+    if expr == "end_of_month":
+        start = today.replace(day=1)
+        return start + relativedelta(months=1) - timedelta(days=1)
+
+    return None
+
 
 # Keeping the dates consistent
 def normalize_due_date(due_at: str | None) -> str | None:
@@ -23,36 +78,10 @@ def normalize_due_date(due_at: str | None) -> str | None:
 
     raise ValueError(f"Invalid due_at format: {due_at}")
 
-def enforce_future_date(due_at_iso: str | None) -> str | None:
-    if not due_at_iso:
-        return None
 
-    due_date = datetime.strptime(due_at_iso, "%Y-%m-%d").date()
-    today = date.today()
+def serialize_date(d: date | None) -> str | None:
+    return d.isoformat() if d else None
 
-    # If date is in the past, assume next year
-    if due_date < today:
-        try:
-            due_date = due_date.replace(year=due_date.year + 1)
-        except ValueError:
-            # Handles Feb 29 edge case
-            due_date = due_date.replace(month=3, day=1, year=due_date.year + 1)
-
-    return due_date.strftime("%Y-%m-%d")
-
-# Remove Markdown mention
-def clean_chat_message(text: str) -> str:
-    text = text.strip()
-
-    # Remove leading "Markdown" heading variants
-    text = re.sub(
-        r"^(#{1,6}\s*)?markdown\s*\n+",
-        "",
-        text,
-        flags=re.IGNORECASE
-    )
-
-    return text
 
 def fix_json(raw):
     # Remove ```json ... ``` or ``` ... ```

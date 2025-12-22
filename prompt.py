@@ -96,15 +96,17 @@ The response schema is:
 {
   "title": string,
   "category_id": int | null,
-  "due_at": string | null,
+  "due": {
+      "type": "absolute" | "relative" | null,
+      "value": string | null
 }
 
 Rules:
 
 - Required: title
-- Optional: category_id, due_at
+- Optional: category_id, due
 - category_id MUST be one of the existing category IDs from context
-- If no existing category matches, use null
+- If none of existing category matches, use null
 - Do NOT include category name or date in the title of a task
 - Do NOT invent categories
 - Examples:
@@ -114,10 +116,16 @@ Rules:
     -> "title": "Improve prompts"
 
 Date rules:
-- Format: dd-mm-yyyy
-- Assume future dates
-- If a date would be in the past, move it to the nearest future occurrence
-- Convert relative dates using today's date from context
+- DO NOT calculate dates
+- If the user gives a relative date (e.g. tomorrow, next week), return it as-is
+- If the user gives an absolute date, extract it exactly
+- If no date is mentioned, use null
+
+Examples:
+    { "type": "relative", "value": "tomorrow" }
+    { "type": "relative", "value": "next sunday" }
+    { "type": "absolute", "value": "25-12-2025" }
+
 
 Output ONLY the JSON object.
     """
@@ -269,6 +277,57 @@ Task listing rules:
     )
 
     return data["message"]
+
+
+def date_prompt(relative_date):
+    system_prompt = """
+    You are a time expression extractor.
+
+Your job is to detect whether the user message contains a date or time reference.
+
+You MUST respond with a single valid JSON object.
+Do NOT include explanations or extra text.
+
+Schema:
+{
+  "time_expression": string | null
+}
+
+Rules:
+- Use ONLY the supported expressions listed below
+- If no time reference is present, return null
+- If the time reference is ambiguous or unsupported, return null
+- Do NOT compute dates
+- Do NOT invent new expressions
+
+Supported expressions:
+- today
+- tomorrow
+- next_week
+- next_month
+- next_year
+- in_N_days
+- in_N_weeks
+- in_N_months
+- start_of_next_week
+- end_of_next_week
+- start_of_month
+- end_of_month
+
+Examples:
+- "buy milk tomorrow" → "tomorrow"
+- "finish report in 3 days" → "in_3_days"
+- "end of next week" → "end_of_next_week"
+- "sometime later" → null
+    """
+
+    data = prompt_ai(
+        user_prompt=relative_date,
+        system_prompt=system_prompt,
+        context=None
+    )
+
+    return data
 
 
 
