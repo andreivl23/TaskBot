@@ -2,6 +2,7 @@ import sqlite3
 
 DB_PATH = "db/tasks.db"
 
+# INIT DB
 def get_connection():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
@@ -41,13 +42,14 @@ def init_db():
             user_id INTEGER NOT NULL,
             name TEXT NOT NULL,
             description TEXT,
+            is_active INTEGER DEFAULT 1,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             UNIQUE (user_id, name),
             FOREIGN KEY (user_id) REFERENCES users(id)
             );
         """)
 
-
+############# USER ###############
 def get_or_create_user(telegram_user_id, username=None, first_name=None):
     with get_connection() as conn:
         user = conn.execute(
@@ -72,6 +74,7 @@ def get_or_create_user(telegram_user_id, username=None, first_name=None):
         ).fetchone()["id"]
 
 
+############# TASKS ###############
 def task_exists(user_id, *, task_id=None, title=None):
     if task_id is not None:
         with get_connection() as conn:
@@ -114,7 +117,6 @@ def add_task(user_id, title, description=None, due_at=None, category_id=None):
         )
 
 
-
 def get_pending_tasks(user_id):
     with get_connection() as conn:
         rows = conn.execute(
@@ -142,12 +144,15 @@ def mark_task_done(user_id, task_id):
             (task_id, user_id)
         )
 
+
+############# CATEGORIES ###############
 def category_exists(user_id, name):
     with get_connection() as conn:
         row = conn.execute(
             """
             SELECT 1 FROM categories
             WHERE user_id = ? AND lower(name) = lower(?)
+            AND is_active = 1
             """,
             (user_id, name)
         ).fetchone()
@@ -169,7 +174,7 @@ def get_categories(user_id):
             """
             SELECT id, name
             FROM categories
-            WHERE user_id = ?
+            WHERE user_id = ? AND is_active = 1
             ORDER BY name
             """,
             (user_id,)
