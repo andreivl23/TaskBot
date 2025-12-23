@@ -60,7 +60,7 @@ You are an intent classifier.
 Return a single JSON object with this schema:
 
 {
-  "type": "create_task" | "mark_as_done" | "create_category" | "chat",
+  "type": "create_task" | "mark_as_done" | "chat",
 }
 
 Rules:
@@ -70,8 +70,6 @@ Rules:
   - "categories" → chat
   - "show categories" → chat
   - "task" → chat
-  - "add category work" → create_category
-  - "create category" → create_category
   - "buy milk" -> create_task
   - "apply for a job" -> create_task
   - "Read book" -> create_task
@@ -129,6 +127,48 @@ Output ONLY the JSON object.
 
     return prompt_ai(user_prompt, system_prompt, context)
 
+
+def assign_category_prompt(title: str, user_id: int):
+    system_prompt = """
+You assign a category to a task.
+
+You MUST respond with a single valid JSON object.
+Do NOT include explanations outside JSON.
+
+Schema:
+{
+  "category_id": number | null,
+  "confidence": "high" | "medium" | "low"
+}
+
+Rules:
+- Categories are provided in context
+- Use category descriptions to infer meaning
+- Choose the BEST matching category
+- If no category clearly matches:
+  - category_id MUST be null
+  - confidence MUST be low
+- Do NOT invent categories
+- Do NOT guess when uncertain
+"""
+
+    categories = get_categories(user_id)
+
+    context = {
+        "task_title": title,
+        "categories": [
+            {
+                "id": c["id"],
+                "name": c["name"],
+                "description": c.get("description")
+            }
+            for c in categories
+        ]
+    }
+
+    return prompt_ai(title, system_prompt, context)
+
+
 def mark_as_done_prompt(user_prompt,user_id):
     system_prompt = """
 You are a task selector.
@@ -169,45 +209,6 @@ Rules:
 
     return data
 
-def create_category_prompt(user_prompt,user_id):
-    system_prompt = """
-You are a category creation assistant.
-
-You MUST respond with a single valid JSON object.
-Do NOT include explanations outside JSON.
-
-Schema:
-{
-  "category_name": string | null,
-  "already_exists": true | false,
-}
-
-Rules:
-- Extract the intended category name from the user message
-- If the user did not clearly specify a category name, set category_name to null
-- If a similar category already exists in the provided context:
-  - Set already_exists = true
-  - Use the existing category name
-- Do NOT invent categories
-- Do NOT modify existing categories
-- Examples:
-    - "Add category Project" -> "category_name": "Project"
-    """
-
-    categories = format_categories_text(get_categories(user_id))
-
-    context = {
-        "categories": categories,
-        "has_categories": len(categories) > 0,
-    }
-
-    data = prompt_ai(
-        user_prompt=user_prompt,
-        system_prompt=system_prompt,
-        context=context
-    )
-
-    return data
 
 def chat_prompt(user_prompt, user_id):
     system_prompt = """

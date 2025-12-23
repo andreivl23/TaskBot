@@ -4,7 +4,7 @@ from preprocessing import resolve_time_expression, normalize_due_date
 from prompt import (
     decision_prompt,
     create_task_prompt,
-    create_category_prompt,
+    assign_category_prompt,
     mark_as_done_prompt,
     chat_prompt,
     date_prompt
@@ -15,14 +15,20 @@ def handle_user_input(text: str, user_id: int) -> str:
 
     match decision["type"]:
         case "create_task":
-            data = create_task_prompt(text)
-
-            if not data.get("title"):
+            task = create_task_prompt(text)
+            category = assign_category_prompt(text,user_id)
+            if category.get('category_id') is None or category.get('confidence') != "high":
+                # show_category_buttons()
+                print("DEBUG: Category null or confidence is not high")
+                category_id = None
+            else:
+                category_id = category.get('category_id')
+            if not task.get("title"):
                 return "I couldn't determine the task title."
 
-            if task_exists(user_id, title=data["title"]):
+            if task_exists(user_id, title=task["title"]):
                 return "That task already exists."
-            due = data.get("due")
+            due = task.get("due")
             if not due:
                 due_at = None
             elif due["type"] == "relative":
@@ -36,12 +42,12 @@ def handle_user_input(text: str, user_id: int) -> str:
 
             add_task(
                 user_id=user_id,
-                title=data["title"].strip(),
+                title=task["title"].strip(),
                 due_at=due_at,
-                category_id=data.get("category_id"),
+                category_id=category_id
             )
 
-            return f"Task '{data['title']}' saved."
+            return f"Task '{task['title']}' saved."
 
         case "mark_as_done":
             data = mark_as_done_prompt(text, user_id)
@@ -54,20 +60,6 @@ def handle_user_input(text: str, user_id: int) -> str:
 
             mark_task_done(user_id, data["task_id"])
             return f"Task {data['task_id']} marked as done."
-
-        case "create_category":
-            data = create_category_prompt(text, user_id)
-
-            if data["category_name"] is None:
-                return "Please specify a category name."
-
-            name = data["category_name"].strip().lower()
-
-            if category_exists(user_id, name):
-                return f"Category '{name}' already exists."
-
-            create_category(user_id, name)
-            return f"Category '{name}' created."
 
         case _:
             return chat_prompt(text, user_id)
