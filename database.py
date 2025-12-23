@@ -172,7 +172,7 @@ def get_categories(user_id):
     with get_connection() as conn:
         rows = conn.execute(
             """
-            SELECT id, name
+            SELECT id, name, description
             FROM categories
             WHERE user_id = ? AND is_active = 1
             ORDER BY name
