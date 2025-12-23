@@ -69,12 +69,13 @@ Rules:
 - Examples:
   - "categories" → chat
   - "show categories" → chat
+  - "task" → chat
   - "add category work" → create_category
   - "create category" → create_category
   - "buy milk" -> create_task
-  - "apply for a job" -> create task
-  - "remove / delete" -> mark_as_done 
-  - "task" → chat
+  - "apply for a job" -> create_task
+  - "Read book" -> create_task
+  - "remove / delete / mark" -> mark_as_done 
 - Output JSON only
     """
 
@@ -210,7 +211,8 @@ Rules:
 
 def chat_prompt(user_prompt, user_id):
     system_prompt = """
-You are a task advisor.
+You are a task advisor. 
+You provide insight to the user based on the tasks in the context and users question.
 
 You MUST respond with a single valid JSON object.
 Do NOT include explanations outside JSON.
@@ -221,19 +223,15 @@ Schema:
 }
 
 Rules:
-- "message" MUST contain HTML-styled text.
-- Only use these HTML tags: <b>, <i>. Use "\\n" as break line
-- You are NOT allowed to create, remove, modify, or complete tasks or categories
-- NEVER say or imply that a task was created, removed, deleted, updated, or marked as done
+- "message" MUST contain unstyled text.
 - If the user requests an action (e.g. remove, delete, mark, complete):
-  - You MUST explain to the user that you cannot perform actions.
   - Inform the user about the supported actions
 
 Supported actions are:
-1. Create task with a category
-2. Mark task as done
-3. Create category
-4. Chat about tasks
+- Create task with a category
+- Mark task as done
+- Create category
+- Chat about tasks
 
 If there are no tasks, reply exactly:
 "There are no tasks created yet."
@@ -244,12 +242,12 @@ Task listing rules:
 
     categories = get_categories(user_id)
     categories_by_id = {c["id"]: c["name"] for c in categories}
+    tasks = get_pending_tasks(user_id)
 
-    tasks = format_tasks_text(get_pending_tasks(user_id), categories_by_id)
 
     context = {
         "current_date": current_date,
-        "current_tasks": tasks,
+        "current_tasks": format_tasks_text(tasks, categories_by_id),
         "has_tasks": len(tasks) > 0,
         "categories": format_categories_text(categories),
         "has_categories": len(categories) > 0,
