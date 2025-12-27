@@ -12,7 +12,7 @@ endpoint = os.getenv("TASKBOT_PROMPT_ENDPOINT")
 
 current_date = date.today().strftime("%A %d-%m-%Y")
 
-def prompt_ai(user_prompt, system_prompt, context = None, model="qwen3:latest"):
+def prompt_ai(user_prompt, system_prompt, context = None, model="gemma3:latest"):
 
     system_message = system_prompt
 
@@ -213,7 +213,7 @@ Rules:
 def chat_prompt(user_prompt, user_id):
     system_prompt = """
 You are a task advisor. 
-You provide insight to the user based on the tasks in the context and users question.
+You provide insight to the user based on the tasks in the context and user's questions.
 
 You MUST respond with a single valid JSON object.
 Do NOT include explanations outside JSON.
@@ -225,20 +225,15 @@ Schema:
 
 Rules:
 - "message" MUST contain unstyled text.
+- By default, include tasks with the nearest deadlines. Do no include task IDs. 
 - If the user requests an action (e.g. remove, delete, mark, complete):
-  - Inform the user about the supported actions
+  - Inform the user that buttons are responsible for actions
+  - you can only chat with user about his tasks
 
-Supported actions are:
-- Create task with a category
-- Mark task as done
-- Create category
-- Chat about tasks
 
-If there are no tasks, reply exactly:
+If there are no tasks in the context, reply exactly:
 "There are no tasks created yet."
 
-Task listing rules:
-- By default, include tasks with the nearest deadlines
 """
 
     categories = get_categories(user_id)

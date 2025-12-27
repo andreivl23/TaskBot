@@ -6,7 +6,10 @@ import os
 # APP functions
 from database import init_db, get_or_create_user
 # Managing input
-from handlers import handle_user_input
+from handlers.chat import chat_prompt
+
+# Telegram
+from telegram.webhook import telegram_webhook
 
 # ENV VARIABLES
 load_dotenv()
@@ -29,34 +32,8 @@ def index():
 
 
 @app.route("/telegram/webhook", methods=["POST"])
-def telegram_webhook():
-    print(">>> TELEGRAM WEBHOOK HIT <<<", flush=True)
-    data = request.json
-    print("RAW DATA:", data, flush=True)
-    if not data or "message" not in data:
-        return "ok", 200
-
-    message = data["message"]
-    chat_id = message["chat"]["id"]
-    text = message.get("text", "")
-
-    tg_user = message["from"]
-
-    user_id = get_or_create_user(
-        telegram_user_id=tg_user["id"],
-        username=tg_user.get("username"),
-        first_name=tg_user.get("first_name"),
-    )
-
-    reply = handle_user_input(text, user_id)
-
-    requests.post(
-        TELEGRAM_API,
-        json={"chat_id": chat_id, "text": reply, "parse_mode": "HTML"},
-        timeout=10
-    )
-
-    return "ok", 200
+def telegram_route():
+    return telegram_webhook()
 
 
 @app.route('/prompt', methods=['GET'])
@@ -69,10 +46,7 @@ def prompt():
         first_name="Demo"
     )
 
-    return handle_user_input(text, user_id)
-
-
-
+    return chat_prompt(text, user_id)
 
 
 if __name__ == '__main__':
