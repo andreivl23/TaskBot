@@ -53,37 +53,6 @@ def prompt_ai(user_prompt, system_prompt, context = None, model="gemma3:latest")
     return llm_json
 
 
-def decision_prompt(user_prompt):
-    system_prompt = """
-You are an intent classifier.
-
-Return a single JSON object with this schema:
-
-{
-  "type": "create_task" | "mark_as_done" | "chat",
-}
-
-Rules:
-- Choose a CREATE intent ONLY if the user clearly asks to create or add something
-- Queries, single words, listings, or vague references MUST be classified as "chat"
-- Examples:
-  - "categories" → chat
-  - "show categories" → chat
-  - "task" → chat
-  - "buy milk" -> create_task
-  - "apply for a job" -> create_task
-  - "Read book" -> create_task
-  - "remove / delete / mark" -> mark_as_done 
-- Output JSON only
-    """
-
-    return prompt_ai(
-        user_prompt=user_prompt,
-        system_prompt=system_prompt,
-        context={}
-    )
-
-
 def create_task_prompt(user_prompt):
     system_prompt = """You extract task information.
 

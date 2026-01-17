@@ -1,3 +1,6 @@
+from database import get_categories
+
+
 def main_menu_keyboard():
     return {
         "keyboard": [
@@ -31,5 +34,36 @@ def category_menu_keyboard():
             [{"text": "⬅️ Back", "callback_data": "menu:main"}],
         ]
     }
+
+def category_selection_keyboard(user_id):
+    categories = get_categories(user_id)
+
+    keyboard = []
+
+    row = []
+    for c in categories:
+        row.append({
+            "text": c["name"],
+            "callback_data": f"category:select:{c['id']}"
+        })
+
+        # 2 buttons per row
+        if len(row) == 2:
+            keyboard.append(row)
+            row = []
+
+    if row:
+        keyboard.append(row)
+
+    # Utility buttons
+    keyboard.append([
+        {"text": "➕ Create category", "callback_data": "category:create"}
+    ])
+    keyboard.append([
+        {"text": "❌ No category", "callback_data": "category:select:none"}
+    ])
+
+    return {"inline_keyboard": keyboard}
+
 
 

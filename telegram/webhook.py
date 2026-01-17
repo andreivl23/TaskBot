@@ -3,7 +3,6 @@ from flask import request
 from telegram.callbacks import handle_message, handle_callback
 
 
-
 def telegram_webhook():
     data = request.json
     print("DEBUG WEBHOOK DATA: ", data)

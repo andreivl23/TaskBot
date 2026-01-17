@@ -5,10 +5,12 @@ from telegram.keyboards import *
 from database import get_or_create_user, mark_task_done, get_pending_tasks, set_user_state, get_user_state, \
     clear_user_state
 
+from telegram.text_actions import TEXT_ACTIONS
+
 import os
 
 TELEGRAM_API = f"https://api.telegram.org/bot{os.getenv('TASKBOT_TELEGRAM_TOKEN')}/sendMessage"
-WELCOME_TEXT = "Hello!\nThis is early testing"
+WELCOME_TEXT = "Hello!\nThis is early testing. V2"
 
 def send_message(chat_id, text, reply_markup=None):
     payload = {
@@ -21,9 +23,6 @@ def send_message(chat_id, text, reply_markup=None):
 
     requests.post(TELEGRAM_API, json=payload, timeout=10)
 
-
-
-from telegram.text_actions import TEXT_ACTIONS
 
 def handle_message(message):
     chat_id = message["chat"]["id"]
@@ -100,8 +99,8 @@ def handle_stateful_input(user_id, chat_id, text, state):
             return handle_task_creation_text(
                 user_id, chat_id, text, state["draft"]
             )
-
     return "ok", 200
+
 
 def handle_callback(cb):
     chat_id = cb["message"]["chat"]["id"]
@@ -118,15 +117,34 @@ def handle_callback(cb):
         case ("task", "done"):
             mark_task_done(user_id, int(arg))
             send_message(chat_id, "Task marked as done.")
+
         case ("category", "menu"):
             send_message(
                 chat_id,
                 "Manage categories:",
                 reply_markup=category_menu_keyboard()
             )
+
+        case ("category", "select"):
+            state = get_user_state(user_id)
+            if not state or state["state"] != "creating_task":
+                send_message(chat_id, "No active task creation.")
+                return "ok", 200
+
+            draft = state["draft"]
+            draft["category_id"] = None if arg == "none" else int(arg)
+
+            # Persist draft
+            set_user_state(user_id, "creating_task", draft)
+
+
+            clear_user_state(user_id)
+            send_message(chat_id, "Task created ✅", reply_markup=main_menu_keyboard())
+
         case ("menu", "main"):
             send_message(chat_id, "Main menu", reply_markup=main_menu_keyboard())
     return "ok", 200
+
 
 def handle_task_creation_text(user_id, chat_id, text, draft):
     task = create_task_prompt(text)
@@ -143,8 +161,10 @@ def handle_task_creation_text(user_id, chat_id, text, draft):
     send_message(
         chat_id,
         "Select a category:",
-        #reply_markup=category_selection_keyboard(user_id)
+        reply_markup=category_selection_keyboard(user_id)
     )
 
     return "ok", 200
+
+
 
