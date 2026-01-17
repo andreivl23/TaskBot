@@ -1,3 +1,4 @@
+import json
 import sqlite3
 
 DB_PATH = "db/tasks.db"
@@ -46,6 +47,14 @@ def init_db():
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             UNIQUE (user_id, name),
             FOREIGN KEY (user_id) REFERENCES users(id)
+            );
+        """)
+
+        conn.execute("""CREATE TABLE IF NOT EXISTS user_states (
+            user_id INTEGER PRIMARY KEY,
+            state TEXT NOT NULL,
+            draft_json TEXT,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
             );
         """)
 
@@ -182,5 +191,44 @@ def get_categories(user_id):
 
         return [dict(row) for row in rows]
 
+
+def get_user_state(user_id):
+    with get_connection() as conn:
+        row = conn.execute(
+        "SELECT state, draft_json FROM user_states WHERE user_id = ?",
+        (user_id,)
+        ).fetchone()
+    if not row:
+        return None
+
+    return {
+        "state": row["state"],
+        "draft": json.loads(row["draft_json"]) if row["draft_json"] else {}
+    }
+
+
+def set_user_state(user_id, state, draft=None):
+    draft_json = json.dumps(draft or {})
+    with get_connection() as conn:
+        conn.execute(
+        """
+        INSERT INTO user_states (user_id, state, draft_json)
+        VALUES (?, ?, ?)
+        ON CONFLICT(user_id)
+        DO UPDATE SET
+            state = excluded.state,
+            draft_json = excluded.draft_json,
+            updated_at = CURRENT_TIMESTAMP
+        """,
+        (user_id, state, draft_json)
+        )
+
+
+def clear_user_state(user_id):
+    with get_connection() as conn:
+        conn.execute(
+        "DELETE FROM user_states WHERE user_id = ?",
+        (user_id,)
+    )
 
 

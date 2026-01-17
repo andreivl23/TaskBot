@@ -31,3 +31,5 @@ def category_menu_keyboard():
             [{"text": "⬅️ Back", "callback_data": "menu:main"}],
         ]
     }
+
+
