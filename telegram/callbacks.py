@@ -223,8 +223,9 @@ def handle_category_creation_text(user_id, chat_id, text):
 
     create_category(user_id, name)
 
-    if get_user_state(user_id)['draft'][]:
-        clear_user_state(user_id)
+
+    clear_user_state(user_id) # clears state even in task creation process
+
     send_message(
         chat_id,
         f"Category “{name}” created ✅"
