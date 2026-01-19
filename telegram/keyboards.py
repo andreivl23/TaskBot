@@ -30,8 +30,7 @@ def category_menu_keyboard():
         "inline_keyboard": [
             [{"text": "➕ Create category", "callback_data": "category:create"}],
             [{"text": "✏️ Rename category", "callback_data": "category:rename"}],
-            [{"text": "🗑 Hide category", "callback_data": "category:hide"}],
-            [{"text": "⬅️ Back", "callback_data": "menu:main"}],
+            [{"text": "🗑 Hide category", "callback_data": "category:hide"}]
         ]
     }
 

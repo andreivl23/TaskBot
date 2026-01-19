@@ -159,8 +159,6 @@ def handle_callback(cb):
             )
             send_message(chat_id, "Send the category name:")
 
-        case ("menu", "main"):
-            send_message(chat_id, "Main menu", reply_markup=main_menu_keyboard())
     return "ok", 200
 
 
@@ -225,11 +223,12 @@ def handle_category_creation_text(user_id, chat_id, text):
 
     create_category(user_id, name)
 
-    clear_user_state(user_id)
+    if get_user_state(user_id)['draft'][]:
+        clear_user_state(user_id)
     send_message(
         chat_id,
-        f"Category “{name}” created ✅",
-        reply_markup=category_menu_keyboard()
+        f"Category “{name}” created ✅"
+        #reply_markup=category_menu_keyboard() # no need to display category menu
     )
 
     return "ok", 200
