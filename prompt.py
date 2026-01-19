@@ -1,6 +1,4 @@
 import requests
-import json
-import datetime
 from database import get_pending_tasks, get_categories
 from preprocessing import *
 import os
