@@ -1,6 +1,10 @@
-import requests
+from datetime import date
 
-from prompt import chat_prompt, create_task_prompt
+import requests
+from dateutil.utils import today
+
+from preprocessing import resolve_time_expression, normalize_due_date
+from prompt import chat_prompt, create_task_prompt, assign_category_prompt, date_prompt
 from telegram.keyboards import *
 from database import get_or_create_user, mark_task_done, get_pending_tasks, set_user_state, get_user_state, \
     clear_user_state
@@ -11,6 +15,7 @@ import os
 
 TELEGRAM_API = f"https://api.telegram.org/bot{os.getenv('TASKBOT_TELEGRAM_TOKEN')}/sendMessage"
 WELCOME_TEXT = "Hello!\nThis is early testing. V2"
+
 
 def send_message(chat_id, text, reply_markup=None):
     payload = {
@@ -99,6 +104,10 @@ def handle_stateful_input(user_id, chat_id, text, state):
             return handle_task_creation_text(
                 user_id, chat_id, text, state["draft"]
             )
+        case "creating_category":
+            return handle_category_creation_text(
+                user_id, chat_id, text
+            )
     return "ok", 200
 
 
@@ -132,14 +141,23 @@ def handle_callback(cb):
                 return "ok", 200
 
             draft = state["draft"]
-            draft["category_id"] = None if arg == "none" else int(arg)
-
-            # Persist draft
-            set_user_state(user_id, "creating_task", draft)
-
+            from database import add_task
+            add_task(
+                user_id=user_id,
+                title=draft["title"],
+                due_at=draft.get("due"),
+                category_id=draft.get("category_id")
+            )
 
             clear_user_state(user_id)
             send_message(chat_id, "Task created ✅", reply_markup=main_menu_keyboard())
+        case ("category", "create"):
+            set_user_state(
+                user_id,
+                state="creating_category",
+                draft={}
+            )
+            send_message(chat_id, "Send the category name:")
 
         case ("menu", "main"):
             send_message(chat_id, "Main menu", reply_markup=main_menu_keyboard())
@@ -154,14 +172,64 @@ def handle_task_creation_text(user_id, chat_id, text, draft):
         return "ok", 200
 
     draft["title"] = task["title"]
-    draft["due"] = task.get("due")
 
+    due = task.get("due")
+    if due:
+        if due["type"] == "relative":
+            time_expr = date_prompt(due["value"])["time_expression"]
+            due_date = resolve_time_expression(time_expr, date.today())
+            draft["due"] = due_date.isoformat() if due_date else None
+        elif due["type"] == "absolute":
+            draft["due"] = normalize_due_date(due["value"])
+        else:
+            draft["due"] = None
+    else:
+        draft["due"] = None
+
+    category = assign_category_prompt(task["title"], user_id)
+
+    # ✅ Auto-category succeeded → finalize immediately
+    if category.get("category_id"):
+        draft["category_id"] = category["category_id"]
+
+        from database import add_task
+        add_task(
+            user_id=user_id,
+            title=draft["title"],
+            due_at=draft.get("due"),
+            category_id=draft["category_id"]
+        )
+
+        clear_user_state(user_id)
+        send_message(chat_id, "Task created ✅", reply_markup=main_menu_keyboard())
+        return "ok", 200
+
+    # ⏸ Auto-category failed → pause and wait for callback
     set_user_state(user_id, "creating_task", draft)
 
     send_message(
         chat_id,
-        "Select a category:",
+        "I couldn’t confidently choose a category. Please select one:",
         reply_markup=category_selection_keyboard(user_id)
+    )
+
+    return "ok", 200
+
+def handle_category_creation_text(user_id, chat_id, text):
+    from database import create_category
+
+    name = text.strip()
+    if not name:
+        send_message(chat_id, "Category name cannot be empty.")
+        return "ok", 200
+
+    create_category(user_id, name)
+
+    clear_user_state(user_id)
+    send_message(
+        chat_id,
+        f"Category “{name}” created ✅",
+        reply_markup=category_menu_keyboard()
     )
 
     return "ok", 200

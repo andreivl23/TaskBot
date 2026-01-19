@@ -99,7 +99,9 @@ Output ONLY the JSON object.
 
 def assign_category_prompt(title: str, user_id: int):
     system_prompt = """
-You assign a category to a task.
+You assign a category to a task. 
+Your job is to guess what category title of the task fits. 
+You are provided with a list of categories to choose from. 
 
 You MUST respond with a single valid JSON object.
 Do NOT include explanations outside JSON.
@@ -111,12 +113,13 @@ Schema:
 }
 
 Rules:
-- Categories are provided in context
+- Existing categories are provided in the context
 - Use category descriptions to infer meaning
 - Choose the BEST matching category
 - If no category clearly matches:
   - category_id MUST be null
   - confidence MUST be low
+- If categories don't exist, use null
 - Do NOT invent categories
 - Do NOT guess when uncertain
 """
@@ -132,7 +135,7 @@ Rules:
                 "description": c.get("description")
             }
             for c in categories
-        ]
+        ] if categories else "There are no categories. Use null."
     }
 
     return prompt_ai(title, system_prompt, context)
@@ -183,6 +186,7 @@ def chat_prompt(user_prompt, user_id):
     system_prompt = """
 You are a task advisor. 
 You provide insight to the user based on the tasks in the context and user's questions.
+You should reply in conversational format. 
 
 You MUST respond with a single valid JSON object.
 Do NOT include explanations outside JSON.
@@ -194,7 +198,9 @@ Schema:
 
 Rules:
 - "message" MUST contain unstyled text.
-- By default, include tasks with the nearest deadlines. Do no include task IDs. 
+- By default, include tasks with the nearest deadlines. 
+- Do no include task IDs. 
+- Do not ask user questions.
 - If the user requests an action (e.g. remove, delete, mark, complete):
   - Inform the user that buttons are responsible for actions
   - you can only chat with user about his tasks

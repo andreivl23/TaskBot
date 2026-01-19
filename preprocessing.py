@@ -7,6 +7,7 @@ from datetime import date, timedelta
 from dateutil.relativedelta import relativedelta
 
 def resolve_time_expression(expr: str | None, today: date) -> date | None:
+
     if not expr:
         return None
 
